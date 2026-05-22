@@ -391,7 +391,7 @@
 
     <!-- ── Direcciones ── -->
     <div class="section">
-      <div class="section-title">🏠 Dirección de Entrega</div>
+      <div class="section-title">🏠 Dirección de Entrega <span style="color:var(--danger);font-size:11px;font-weight:400;text-transform:none;letter-spacing:0">(al menos una requerida)</span></div>
 
       <!-- Tabs: Casa / Trabajo -->
       <div class="addr-tabs">
@@ -404,7 +404,7 @@
       <!-- CASA -->
       <div id="panelCasa">
         <div class="field">
-          <label>Dirección de Casa</label>
+          <label>Dirección de Casa <span class="req">*</span></label>
           <textarea id="fDirCasa" placeholder="Colonia, calle, número de casa, referencias…"
                     maxlength="500" rows="3" autocomplete="street-address"></textarea>
         </div>
@@ -426,7 +426,7 @@
       <!-- TRABAJO -->
       <div id="panelTrabajo" style="display:none">
         <div class="field">
-          <label>Dirección de Trabajo</label>
+          <label>Dirección de Trabajo <span class="req">*</span></label>
           <textarea id="fDirTrabajo" placeholder="Edificio, piso, colonia, referencias…"
                     maxlength="500" rows="3" autocomplete="street-address"></textarea>
         </div>
@@ -590,6 +590,15 @@ function validate() {
   if (nombre.length < 3) { showErr('El nombre debe tener al menos 3 caracteres.'); document.getElementById('fNombre').focus(); return null; }
   if (!tel) { showErr('El teléfono principal es obligatorio.'); document.getElementById('fTel').focus(); return null; }
   if (!ciudad) { showErr('La ciudad es obligatoria.'); document.getElementById('fCiudad').focus(); return null; }
+
+  const dirCasa    = san(document.getElementById('fDirCasa').value);
+  const dirTrabajo = san(document.getElementById('fDirTrabajo').value);
+  if (!dirCasa && !dirTrabajo) {
+    showErr('La dirección de entrega es obligatoria. Por favor llena al menos la dirección de Casa o Trabajo.');
+    switchAddr('casa');
+    setTimeout(() => document.getElementById('fDirCasa').focus(), 100);
+    return null;
+  }
 
   const email = san(document.getElementById('fEmail').value);
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
