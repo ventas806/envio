@@ -208,7 +208,13 @@
   }
   .btn-submit:hover { opacity: .92; }
   .btn-submit:active { transform: scale(.98); }
-  .btn-submit:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; pointer-events: none; }
+  .btn-submit.loading {
+    background: linear-gradient(135deg, #555 0%, #777 100%);
+    opacity: 1;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
 
   /* ── Spinner ── */
   .spinner {
@@ -380,9 +386,6 @@
         <label>Correo electrónico (opcional)</label>
         <input id="fEmail" type="email" placeholder="Ej: juan@gmail.com"
                maxlength="120" autocomplete="email" inputmode="email"/>
-        <div style="font-size:11px;color:var(--accent2);margin-top:5px;display:flex;align-items:center;gap:4px">
-          📬 Ingresa tu correo para recibir confirmación y novedades de tu pedido
-        </div>
       </div>
 
       <div class="field">
@@ -394,7 +397,7 @@
 
     <!-- ── Direcciones ── -->
     <div class="section">
-      <div class="section-title">🏠 Dirección de Entrega <span style="color:var(--danger);font-size:11px;font-weight:400;text-transform:none;letter-spacing:0">(al menos una requerida)</span></div>
+      <div class="section-title">🏠 Dirección de Entrega</div>
 
       <!-- Tabs: Casa / Trabajo -->
       <div class="addr-tabs">
@@ -407,7 +410,7 @@
       <!-- CASA -->
       <div id="panelCasa">
         <div class="field">
-          <label>Dirección de Casa <span class="req">*</span></label>
+          <label>Dirección de Casa</label>
           <textarea id="fDirCasa" placeholder="Colonia, calle, número de casa, referencias…"
                     maxlength="500" rows="3" autocomplete="street-address"></textarea>
         </div>
@@ -423,14 +426,13 @@
             </button>
           </div>
           <div class="maps-hint">📌 Presiona 📍 para capturar tu ubicación GPS actual</div>
-          <div style="font-size:12px;color:#f5a623;margin-top:6px;padding:6px 10px;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.25);border-radius:6px;line-height:1.4">⚠️ <em>Solamente por si su pedido requiere Mensajero — envíos por CAEX o recoger en tienda no es necesario</em></div>
         </div>
       </div>
 
       <!-- TRABAJO -->
       <div id="panelTrabajo" style="display:none">
         <div class="field">
-          <label>Dirección de Trabajo <span class="req">*</span></label>
+          <label>Dirección de Trabajo</label>
           <textarea id="fDirTrabajo" placeholder="Edificio, piso, colonia, referencias…"
                     maxlength="500" rows="3" autocomplete="street-address"></textarea>
         </div>
@@ -446,7 +448,6 @@
             </button>
           </div>
           <div class="maps-hint">📌 Presiona 📍 para capturar tu ubicación GPS actual</div>
-          <div style="font-size:12px;color:#f5a623;margin-top:6px;padding:6px 10px;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.25);border-radius:6px;line-height:1.4">⚠️ <em>Solamente por si su pedido requiere Mensajero — envíos por CAEX o recoger en tienda no es necesario</em></div>
         </div>
       </div>
     </div>
@@ -596,15 +597,6 @@ function validate() {
   if (!tel) { showErr('El teléfono principal es obligatorio.'); document.getElementById('fTel').focus(); return null; }
   if (!ciudad) { showErr('La ciudad es obligatoria.'); document.getElementById('fCiudad').focus(); return null; }
 
-  const dirCasa    = san(document.getElementById('fDirCasa').value);
-  const dirTrabajo = san(document.getElementById('fDirTrabajo').value);
-  if (!dirCasa && !dirTrabajo) {
-    showErr('La dirección de entrega es obligatoria. Por favor llena al menos la dirección de Casa o Trabajo.');
-    switchAddr('casa');
-    setTimeout(() => document.getElementById('fDirCasa').focus(), 100);
-    return null;
-  }
-
   const email = san(document.getElementById('fEmail').value);
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     showErr('El correo electrónico no tiene un formato válido.'); document.getElementById('fEmail').focus(); return null;
@@ -639,8 +631,17 @@ async function enviarFormulario() {
 
   // Client-side rate limit: 30 s between submits
   const now = Date.now();
-  if (now - _lastSubmit < 30_000) {
-    showErr('Por favor espera unos segundos antes de intentar de nuevo.');
+  const diff = Math.ceil((30_000 - (now - _lastSubmit)) / 1000);
+  if (_lastSubmit > 0 && now - _lastSubmit < 30_000) {
+    showErr(`Por favor espera ${diff} segundo${diff !== 1 ? 's' : ''} antes de intentar de nuevo.`);
+    // start countdown update
+    const errEl = document.getElementById('errMsg');
+    let remaining = diff;
+    const iv = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) { clearInterval(iv); hideErr(); return; }
+      errEl.textContent = `Por favor espera ${remaining} segundo${remaining !== 1 ? 's' : ''} antes de intentar de nuevo.`;
+    }, 1000);
     return;
   }
 
@@ -654,7 +655,8 @@ async function enviarFormulario() {
 
   const btn = document.getElementById('btnSubmit');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Guardando…';
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner"></span> Guardando… por favor no cierres esta página';
 
   try {
     const id  = 'cli_' + Date.now();
@@ -695,8 +697,10 @@ async function enviarFormulario() {
     console.error('Error guardando:', err);
     showErr('Ocurrió un error al guardar. Por favor verifica tu conexión e intenta de nuevo.');
     btn.disabled = false;
+    btn.classList.remove('loading');
     btn.innerHTML = '📦 Guardar información de envío';
     _submitting = false;
+    _lastSubmit = 0;
   }
 }
 
@@ -731,6 +735,7 @@ function reiniciarFormulario() {
 
   const btn = document.getElementById('btnSubmit');
   btn.disabled = false;
+  btn.classList.remove('loading');
   btn.innerHTML = '📦 Guardar información de envío';
 
   _submitting = false;
